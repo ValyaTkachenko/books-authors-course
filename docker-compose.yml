@@ -1,0 +1,32 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: books-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: books-app
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # у мережі compose до БД звертаємось за іменем сервісу "mongo"
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/booksdb
+      LOGGING_FILE_NAME: /app/logs/app.log
+    volumes:
+      # логи записуються на комп'ютер і залишаються після видалення контейнера
+      - ./logs:/app/logs
+
+volumes:
+  mongo-data:
