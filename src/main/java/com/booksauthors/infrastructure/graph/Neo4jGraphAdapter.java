@@ -4,7 +4,10 @@ import com.booksauthors.domain.model.Book;
 import com.booksauthors.domain.port.out.GraphQueryPort;
 import java.util.List;
 
+import org.springframework.stereotype.Repository;
+
 /** Вихідний адаптер: зв'язки та рекомендації поверх Neo4j: (Author)-[:WRITTEN]->(Book)-[:WON]->(Award). */
+@Repository
 public class Neo4jGraphAdapter implements GraphQueryPort {
 
     @Override

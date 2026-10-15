@@ -1,2 +1,5 @@
-   logs/
-   target/
+target/
+logs/
+*.log
+log.txt
+app-check.jar

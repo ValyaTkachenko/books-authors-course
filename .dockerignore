@@ -1,0 +1,14 @@
+target/
+logs/
+.git/
+.gitignore
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+*.log
+log.txt
+app-check.jar

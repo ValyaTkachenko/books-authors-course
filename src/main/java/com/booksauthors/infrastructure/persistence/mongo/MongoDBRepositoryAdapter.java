@@ -5,7 +5,10 @@ import com.booksauthors.domain.port.out.BookRepositoryPort;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.stereotype.Repository;
+
 /** Вихідний адаптер: CRUD-реалізація BookRepositoryPort поверх MongoDB (колекції books/authors/publishers). */
+@Repository
 public class MongoDBRepositoryAdapter implements BookRepositoryPort {
 
     @Override

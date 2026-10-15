@@ -1,5 +1,7 @@
 package com.booksauthors.application.usecase;
 
+import org.springframework.stereotype.Service;
+
 import com.booksauthors.application.dto.IngestBookRequest;
 import com.booksauthors.application.port.in.IngestCommandPort;
 import com.booksauthors.domain.port.out.BookRepositoryPort;
@@ -11,6 +13,7 @@ import com.booksauthors.domain.port.out.GraphQueryPort;
  * Command Flow: CsvDataIngestor -> IngestCommandPort -> IngestBookUseCase
  *               -> BookRepositoryPort (MongoDB) -> синхронно SearchIndexPort + GraphQueryPort.
  */
+@Service
 public class IngestBookUseCase implements IngestCommandPort {
 
     private final BookRepositoryPort bookRepositoryPort;

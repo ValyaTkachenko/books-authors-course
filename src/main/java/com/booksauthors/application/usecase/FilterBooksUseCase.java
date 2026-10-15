@@ -5,7 +5,10 @@ import com.booksauthors.application.port.in.FilterBooksQueryPort;
 import com.booksauthors.domain.port.out.BookRepositoryPort;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
 /** Application Layer: сценарій фільтрації книг за жанром/роком (напряму через MongoDB). */
+@Service
 public class FilterBooksUseCase implements FilterBooksQueryPort {
 
     private final BookRepositoryPort bookRepositoryPort;

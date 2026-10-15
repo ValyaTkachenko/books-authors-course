@@ -7,11 +7,14 @@ import com.booksauthors.domain.port.out.SearchIndexPort;
 import com.booksauthors.infrastructure.ingestion.QueryNormalizer;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
 /**
  * Application Layer: сценарій повнотекстового пошуку.
  * Query Flow: SearchQueryPort -> QueryNormalizer -> CachePort (Hit/Miss)
  *             -> при Miss: SearchIndexPort (Elasticsearch) -> запис у кеш.
  */
+@Service
 public class SearchBooksUseCase implements SearchQueryPort {
 
     private final CachePort cachePort;
