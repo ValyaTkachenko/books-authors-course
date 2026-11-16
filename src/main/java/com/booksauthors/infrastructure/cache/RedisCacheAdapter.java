@@ -1,23 +1,49 @@
 package com.booksauthors.infrastructure.cache;
 
-import com.booksauthors.domain.model.Book;
+import com.booksauthors.domain.model.SearchResult;
 import com.booksauthors.domain.port.out.CachePort;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
 import java.util.Optional;
 
-import org.springframework.stereotype.Repository;
-
-/** Вихідний адаптер: кешування результатів пошуку поверх Redis (ключ search:{normalized_query_hash}). */
-@Repository
+/** Кеш результатів пошуку в Redis (JSON + TTL). Якщо Redis недоступний — працюємо без кешу. */
+@Component
 public class RedisCacheAdapter implements CachePort {
 
-    @Override
-    public Optional<List<Book>> get(String normalizedQueryKey) {
-        throw new UnsupportedOperationException("TODO");
+    private static final Logger log = LoggerFactory.getLogger(RedisCacheAdapter.class);
+    private static final String PREFIX = "search:";
+
+    private final StringRedisTemplate redis;
+    private final ObjectMapper mapper;
+
+    public RedisCacheAdapter(StringRedisTemplate redis, ObjectMapper mapper) {
+        this.redis = redis;
+        this.mapper = mapper;
     }
 
     @Override
-    public void put(String normalizedQueryKey, List<Book> results) {
-        throw new UnsupportedOperationException("TODO");
+    public Optional<SearchResult> get(String normalizedKey) {
+        try {
+            String json = redis.opsForValue().get(PREFIX + normalizedKey);
+            if (json == null) return Optional.empty();
+            return Optional.of(mapper.readValue(json, SearchResult.class));
+        } catch (Exception e) {
+            log.warn("Redis get не вдався, працюємо без кешу: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public void put(String normalizedKey, SearchResult result, Duration ttl) {
+        try {
+            redis.opsForValue().set(PREFIX + normalizedKey, mapper.writeValueAsString(result), ttl);
+        } catch (Exception e) {
+            log.warn("Redis put не вдався: {}", e.getMessage());
+        }
     }
 }

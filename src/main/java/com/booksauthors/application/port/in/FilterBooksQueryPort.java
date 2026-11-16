@@ -1,9 +1,13 @@
 package com.booksauthors.application.port.in;
 
 import com.booksauthors.application.dto.BookResponse;
-import java.util.List;
+import com.booksauthors.application.dto.PagedResponse;
 
-/** Вхідний порт: фільтрація книг за жанром та роком видання. */
+import java.util.Optional;
+
+/** Вхідний порт (query): фільтрація та перегляд книг (жанр, рік, автор). */
 public interface FilterBooksQueryPort {
-    List<BookResponse> filter(String genre, Integer year);
+    PagedResponse<BookResponse> filter(String genre, Integer year, String author, int page, int size);
+
+    Optional<BookResponse> byId(String id);
 }

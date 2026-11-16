@@ -5,11 +5,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 
-@Repository
+/** Перевірка зв'язку між контейнерами (завдання 6): запис і читання тестового документа, результат — у лог. */
+@Component
 public class DockerDbCheckRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DockerDbCheckRunner.class);
@@ -23,19 +24,22 @@ public class DockerDbCheckRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        Document doc = new Document("title", "Docker test book")
-                .append("author", "Test Author")
-                .append("createdAt", Instant.now().toString());
+        try {
+            Document doc = new Document("title", "Docker test book")
+                    .append("author", "Test Author")
+                    .append("createdAt", Instant.now().toString());
+            Document saved = mongoTemplate.insert(doc, COLLECTION);
+            Object id = saved.get("_id");
+            log.info("[DOCKER-CHECK] Saved document to MongoDB, id={}", id);
 
-        Document saved = mongoTemplate.insert(doc, COLLECTION);
-        Object id = saved.get("_id");
-        log.info("[DOCKER-CHECK] Saved document to MongoDB, id={}", id);
-
-        Document found = mongoTemplate.findById(id, Document.class, COLLECTION);
-        if (found != null) {
-            log.info("[DOCKER-CHECK] Read document back: {}", found.toJson());
-        } else {
-            log.error("[DOCKER-CHECK] Document with id={} was not found!", id);
+            Document found = mongoTemplate.findById(id, Document.class, COLLECTION);
+            if (found != null) {
+                log.info("[DOCKER-CHECK] Read document back: {}", found.toJson());
+            } else {
+                log.error("[DOCKER-CHECK] Document with id={} was not found!", id);
+            }
+        } catch (Exception e) {
+            log.error("[DOCKER-CHECK] MongoDB check failed: {}", e.getMessage());
         }
     }
 }

@@ -1,11 +1,13 @@
 package com.booksauthors.domain.port.out;
 
-import com.booksauthors.domain.model.Book;
-import java.util.List;
+import com.booksauthors.domain.model.SearchResult;
+
+import java.time.Duration;
 import java.util.Optional;
 
-/** Вихідний порт: кешування результатів пошуку (реалізує RedisCacheAdapter). */
+/** Вихідний порт: кеш результатів пошуку (реалізація — Redis). Недоступний кеш = cache miss. */
 public interface CachePort {
-    Optional<List<Book>> get(String normalizedQueryKey);
-    void put(String normalizedQueryKey, List<Book> results);
+    Optional<SearchResult> get(String normalizedKey);
+
+    void put(String normalizedKey, SearchResult result, Duration ttl);
 }

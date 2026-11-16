@@ -1,32 +1,136 @@
+# Книги та Автори — повний стек:
+#   MongoDB sharded cluster (3 шарди + config server + mongos), Elasticsearch, Redis, застосунок.
+name: books-authors
+
 services:
-  mongo:
+  # ───────────── MongoDB: config server ─────────────
+  configsvr:
     image: mongo:7
-    container_name: books-mongo
+    container_name: books-configsvr
+    command: ["mongod", "--configsvr", "--replSet", "cfgrs", "--port", "27017", "--bind_ip_all"]
+    volumes:
+      - cfg-data:/data/configdb
+
+  # ───────────── MongoDB: 3 шарди ─────────────
+  shard1:
+    image: mongo:7
+    container_name: books-shard1
+    command: ["mongod", "--shardsvr", "--replSet", "shard1rs", "--port", "27017", "--bind_ip_all"]
+    volumes:
+      - shard1-data:/data/db
+
+  shard2:
+    image: mongo:7
+    container_name: books-shard2
+    command: ["mongod", "--shardsvr", "--replSet", "shard2rs", "--port", "27017", "--bind_ip_all"]
+    volumes:
+      - shard2-data:/data/db
+
+  shard3:
+    image: mongo:7
+    container_name: books-shard3
+    command: ["mongod", "--shardsvr", "--replSet", "shard3rs", "--port", "27017", "--bind_ip_all"]
+    volumes:
+      - shard3-data:/data/db
+
+  # Крок 1: rs.initiate для config server і шардів
+  cluster-init:
+    image: mongo:7
+    container_name: books-cluster-init
+    depends_on: [configsvr, shard1, shard2, shard3]
+    restart: "no"
+    volumes:
+      - ./docker/mongo:/scripts:ro
+    entrypoint: ["bash", "-c", "tr -d '\\r' < /scripts/init-replsets.sh | bash"]
+
+  # Крок 2: роутер mongos (єдина точка входу для застосунку)
+  mongos:
+    image: mongo:7
+    container_name: books-mongos
+    command: ["mongos", "--configdb", "cfgrs/configsvr:27017", "--bind_ip_all", "--port", "27017"]
+    depends_on:
+      cluster-init:
+        condition: service_completed_successfully
     ports:
       - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 5s
       timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # Крок 3: addShard + шардінг колекції booksdb.books
+  shard-init:
+    image: mongo:7
+    container_name: books-shard-init
+    depends_on:
+      mongos:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./docker/mongo:/scripts:ro
+    entrypoint: ["mongosh", "--host", "mongos", "--quiet", "/scripts/init-sharding.js"]
+
+  # ───────────── Elasticsearch ─────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: books-es
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  # ───────────── Redis ─────────────
+  redis:
+    image: redis:7-alpine
+    container_name: books-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
+  # ───────────── Застосунок ─────────────
   app:
     build: .
     container_name: books-app
     depends_on:
-      mongo:
+      shard-init:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8080:8080"
     environment:
-      # у мережі compose до БД звертаємось за іменем сервісу "mongo"
-      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/booksdb
-      LOGGING_FILE_NAME: /app/logs/app.log
+      MONGO_URI: mongodb://mongos:27017/booksdb
+      REDIS_HOST: redis
+      ES_URL: http://elasticsearch:9200
+      LOG_FILE: /app/logs/app.log
+      APP_LOG_LEVEL: INFO          # INFO | DEBUG | WARN | ERROR
+      INGEST_CSV_PATH: /app/data/books_1.Best_Books_Ever.csv
+      CACHE_TTL_SECONDS: 60
     volumes:
-      # логи записуються на комп'ютер і залишаються після видалення контейнера
-      - ./logs:/app/logs
+      - ./logs:/app/logs           # логи лишаються на комп'ютері після видалення контейнера
+      - ./data:/app/data:ro
 
 volumes:
-  mongo-data:
+  cfg-data:
+  shard1-data:
+  shard2-data:
+  shard3-data:
+  es-data:

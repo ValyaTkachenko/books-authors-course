@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Книги та Автори — Панель</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 16px; background: #f4f5f7; color: #222; }
+  h1 { margin: 0 0 12px; font-size: 22px; }
+  h3 { margin: 0 0 10px; font-size: 16px; }
+  .card { background: #fff; padding: 14px; margin: 10px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  input, button { padding: 7px 10px; font-size: 14px; }
+  input[type=range] { flex: 1; min-width: 200px; padding: 0; }
+  button { cursor: pointer; border: 1px solid #888; background: #f0f0f0; border-radius: 4px; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  button.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
+  .tile { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; }
+  .tile b { display: block; font-size: 20px; }
+  .tile span { font-size: 12px; color: #555; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #eee; }
+  mark { background: #fde68a; padding: 0 1px; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+  .FOUND { background: #16a34a; } .EMPTY { background: #6b7280; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; font-size: 13px; }
+  .bar-label { width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { height: 14px; background: #2563eb; border-radius: 3px; min-width: 2px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 10px; }
+  .muted { color: #666; font-size: 13px; }
+  a.author { color: #2563eb; text-decoration: none; }
+  a.author:hover { text-decoration: underline; }
+  .snip { color: #444; font-size: 13px; margin-top: 3px; }
+</style>
+</head>
+<body>
+<h1>Книги та Автори</h1>
+
+<div class="card">
+  <h3>Керування збором даних</h3>
+  <div class="row">
+    <span>Швидкість (записів/с):</span>
+    <input type="range" id="rate" min="10" max="5000" step="10" value="50">
+    <input type="number" id="rateNum" min="10" max="5000" step="10" value="50" style="width:90px">
+  </div>
+  <div class="row" style="margin-top:8px">
+    <input id="path" placeholder="Шлях до CSV (за замовчуванням — з конфігурації)" style="flex:1; min-width:240px">
+    <button class="primary" onclick="startIngest()">Запустити зчитування CSV</button>
+    <button class="danger" onclick="stopIngest()">Зупинити</button>
+  </div>
+  <div id="status" class="muted" style="margin-top:8px">Статус: —</div>
+  <div class="tiles">
+    <div class="tile"><b id="tProcessed">—</b><span>Прочитано з CSV</span></div>
+    <div class="tile"><b id="tSaved">—</b><span>Збережено (upsert)</span></div>
+    <div class="tile"><b id="tDb">—</b><span>Документів у MongoDB</span></div>
+    <div class="tile"><b id="tDbRate">—</b><span>Приріст у БД, док/с</span></div>
+    <div class="tile"><b id="tEs">—</b><span>Документів в Elasticsearch</span></div>
+    <div class="tile"><b id="tFailed">—</b><span>Помилок / не проіндексовано</span></div>
+    <div class="tile"><b id="tSearches">—</b><span>Пошукових запитів</span></div>
+    <div class="tile"><b id="tCache">—</b><span>Cache hit (Redis)</span></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Пошук і фільтрація</h3>
+  <div class="row">
+    <input id="q" placeholder="Повнотекстовий пошук (назва, автор, анотація)" style="flex:1; min-width:240px">
+    <button class="primary" onclick="search()">Шукати</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <input id="author" placeholder="Автор">
+    <input id="genre" placeholder="Жанр (кілька через кому)">
+    <input id="year" placeholder="Рік" type="number" style="width:100px">
+    <button onclick="filter(0)">Фільтрувати</button>
+  </div>
+  <div id="meta" class="muted" style="margin-top:8px"></div>
+  <table id="results" style="margin-top:8px">
+    <thead><tr><th>Назва</th><th>Автор</th><th>Анотація</th><th>Жанри</th><th>Рік</th><th>Рейтинг</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div id="pager" class="row" style="margin-top:8px; display:none">
+    <button onclick="filter(page-1)">← Назад</button>
+    <span id="pageInfo" class="muted"></span>
+    <button onclick="filter(page+1)">Далі →</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Останні пошукові запити</h3>
+  <table id="recent">
+    <thead><tr><th>Запит</th><th>Статус</th><th>Знайдено</th><th>Джерело</th><th>Час, мс</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="cols">
+  <div class="card">
+    <h3>Агрегація по жанрах (збір з усіх шардів)</h3>
+    <div id="genres" class="muted">завантаження…</div>
+  </div>
+  <div class="card">
+    <h3>Розподіл документів по шардах</h3>
+    <div id="shards" class="muted">завантаження…</div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hl = s => esc(s).split('[[h]]').join('<mark>').split('[[/h]]').join('</mark>');
+const fmt = n => (n === undefined || n === null || n < 0) ? '—' : Number(n).toLocaleString('uk-UA');
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  let d = {};
+  try { d = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+
+/* ---------- швидкість ---------- */
+let rateTimer = null;
+function pushRate(v) {
+  clearTimeout(rateTimer);
+  rateTimer = setTimeout(() => api('/api/ingest/rate?rps=' + v, {method: 'POST'}).catch(showErr), 200);
+}
+$('rate').addEventListener('input', e => { $('rateNum').value = e.target.value; pushRate(e.target.value); });
+$('rateNum').addEventListener('input', e => {
+  const v = Math.max(10, Math.min(5000, +e.target.value || 10));
+  $('rate').value = v; pushRate(v);
+});
+
+async function startIngest() {
+  const p = $('path').value.trim();
+  try { await api('/api/ingest/start' + (p ? '?path=' + encodeURIComponent(p) : ''), {method: 'POST'}); await pollStats(); }
+  catch (e) { showErr(e); }
+}
+async function stopIngest() {
+  try { await api('/api/ingest/stop', {method: 'POST'}); await pollStats(); } catch (e) { showErr(e); }
+}
+function showErr(e) { $('status').textContent = 'Помилка: ' + e.message; }
+
+/* ---------- статистика (раз на секунду) ---------- */
+let prev = null, rateInit = false;
+async function pollStats() {
+  try {
+    const s = await api('/api/stats');
+    const i = s.ingest;
+    if (!rateInit) { $('rate').value = i.rate; $('rateNum').value = i.rate; rateInit = true; }
+    $('status').textContent = (i.running ? '▶ Зчитування триває' : '■ Зупинено') + ' · файл: ' + i.path + ' · задана швидкість: ' + i.rate + '/с';
+    $('tProcessed').textContent = fmt(i.processed);
+    $('tSaved').textContent = fmt(i.saved);
+    $('tDb').textContent = fmt(s.booksInDb);
+    $('tEs').textContent = fmt(s.indexedInEs);
+    $('tFailed').textContent = fmt(i.failed) + ' / ' + fmt(i.indexFailed);
+    $('tSearches').textContent = fmt(s.search.total);
+    const c = s.search.cacheHits + s.search.cacheMisses;
+    $('tCache').textContent = c ? Math.round(100 * s.search.cacheHits / c) + '%' : '—';
+    if (prev && s.booksInDb >= 0 && prev.booksInDb >= 0) {
+      const dt = (s.serverTime - prev.serverTime) / 1000;
+      if (dt > 0) $('tDbRate').textContent = Math.max(0, Math.round((s.booksInDb - prev.booksInDb) / dt)).toLocaleString('uk-UA');
+    }
+    prev = s;
+  } catch (e) { showErr(e); }
+}
+
+async function pollRecent() {
+  try {
+    const list = await api('/api/stats/recent-searches?limit=10');
+    $('recent').querySelector('tbody').innerHTML = list.map(e =>
+      `<tr><td>${esc(e.query)}</td><td><span class="badge ${esc(e.status)}">${e.status === 'FOUND' ? 'Знайдено' : 'Пусто'}</span></td>` +
+      `<td>${e.total}</td><td>${e.fromCache ? 'Redis (кеш)' : 'Elasticsearch'}</td><td>${e.tookMs}</td></tr>`).join('');
+  } catch (e) {}
+}
+
+function bars(el, entries, suffix) {
+  const max = Math.max(1, ...entries.map(e => e[1]));
+  el.innerHTML = entries.length ? entries.map(([k, v, extra]) =>
+    `<div class="bar-row"><div class="bar-label" title="${esc(k)}">${esc(k)}</div>` +
+    `<div class="bar" style="width:${Math.round(220 * v / max)}px"></div><div>${v.toLocaleString('uk-UA')}${extra ? ' · ' + esc(extra) : ''}${suffix || ''}</div></div>`).join('')
+    : '<span class="muted">немає даних</span>';
+}
+async function pollAgg() {
+  try {
+    const g = await api('/api/stats/by-genre?limit=12');
+    bars($('genres'), g.map(x => [x.genre, x.count, '★ ' + x.avgRating]));
+  } catch (e) { $('genres').textContent = 'недоступно'; }
+  try {
+    const sh = await api('/api/stats/shards');
+    bars($('shards'), Object.entries(sh));
+  } catch (e) { $('shards').textContent = 'недоступно'; }
+}
+
+/* ---------- таблиця результатів ---------- */
+function renderRows(books) {
+  $('results').querySelector('tbody').innerHTML = books.map(b => {
+    const syn = (b.snippets && b.snippets.length)
+      ? b.snippets.map(s => `<div class="snip">…${hl(s)}…</div>`).join('')
+      : esc((b.synopsis || '').substring(0, 220)) + ((b.synopsis || '').length > 220 ? '…' : '');
+    const title = b.titleHighlight ? hl(b.titleHighlight) : esc(b.title);
+    return `<tr><td>${title}</td>` +
+      `<td><a href="#" class="author" data-a="${esc(b.authorName)}">${esc(b.authorName)}</a></td>` +
+      `<td>${syn}</td><td>${esc((b.genres || []).join(', '))}</td><td>${b.publishedYear || ''}</td><td>${b.rating || ''}</td></tr>`;
+  }).join('');
+}
+
+async function search() {
+  const q = $('q').value.trim();
+  if (!q) return;
+  try {
+    const d = await api('/api/books/search?query=' + encodeURIComponent(q));
+    $('meta').textContent = `Знайдено: ${d.total} · ${d.tookMs} мс · ${d.fromCache ? 'з кешу Redis' : 'з Elasticsearch'} · ключ кешу: "${d.normalizedQuery}"`;
+    renderRows(d.results);
+    $('pager').style.display = 'none';
+    pollRecent();
+  } catch (e) { $('meta').textContent = 'Помилка: ' + e.message; }
+}
+
+let page = 0;
+async function filter(p) {
+  page = Math.max(0, p || 0);
+  const params = new URLSearchParams();
+  if ($('author').value.trim()) params.set('author', $('author').value.trim());
+  if ($('genre').value.trim()) params.set('genre', $('genre').value.trim());
+  if ($('year').value) params.set('year', $('year').value);
+  params.set('page', page); params.set('size', 20);
+  try {
+    const d = await api('/api/books?' + params);
+    $('meta').textContent = `Всього за фільтром: ${d.total.toLocaleString('uk-UA')}`;
+    $('pageInfo').textContent = `Сторінка ${d.page + 1} з ${Math.max(1, Math.ceil(d.total / d.size))}`;
+    $('pager').style.display = 'flex';
+    renderRows(d.items);
+  } catch (e) { $('meta').textContent = 'Помилка: ' + e.message; }
+}
+
+document.addEventListener('click', e => {
+  const a = e.target.closest('a.author');
+  if (a) { e.preventDefault(); $('author').value = a.dataset.a; $('genre').value = ''; $('year').value = ''; filter(0); }
+});
+$('q').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+
+setInterval(pollStats, 1000);
+setInterval(pollRecent, 3000);
+setInterval(pollAgg, 5000);
+pollStats(); pollRecent(); pollAgg();
+</script>
+</body>
+</html>

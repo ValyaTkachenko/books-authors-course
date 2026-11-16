@@ -1,9 +1,8 @@
 package com.booksauthors.application.port.in;
 
-import com.booksauthors.application.dto.BookResponse;
-import java.util.List;
+import com.booksauthors.application.dto.SearchResponse;
 
-/** Вхідний порт: повнотекстовий пошук книг. */
+/** Вхідний порт (query): повнотекстовий пошук. */
 public interface SearchQueryPort {
-    List<BookResponse> search(String rawQuery);
+    SearchResponse search(String rawQuery, int size);
 }

@@ -1,5 +1,42 @@
+# Compiled class files & build artifacts (Maven)
 target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# Large datasets & local data dumps
+data/*.csv
+!data/.gitkeep
+
+# Docker & local volumes
+docker-data/
+volumes/
+*.pid
+
+# Environment variables & local secrets
+.env
+.env.local
+.env.*.local
+application-local.yml
+application-local.properties
+
+# Logs
 logs/
 *.log
-log.txt
-app-check.jar
+npm-debug.log*
+
+# IDE & Editors (IntelliJ IDEA, VS Code, Eclipse)
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath

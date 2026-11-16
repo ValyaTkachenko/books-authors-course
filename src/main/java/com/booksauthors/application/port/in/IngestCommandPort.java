@@ -1,8 +1,11 @@
 package com.booksauthors.application.port.in;
 
 import com.booksauthors.application.dto.IngestBookRequest;
+import com.booksauthors.application.dto.IngestResult;
 
-/** Вхідний порт: прийом потоку книг на запис (з CsvDataIngestor). */
+import java.util.List;
+
+/** Вхідний порт (command): збереження пакета книг. */
 public interface IngestCommandPort {
-    void ingest(IngestBookRequest request);
+    IngestResult ingestBatch(List<IngestBookRequest> requests);
 }
