@@ -78,7 +78,7 @@
   </div>
   <div id="meta" class="muted" style="margin-top:8px"></div>
   <table id="results" style="margin-top:8px">
-    <thead><tr><th>Назва</th><th>Автор</th><th>Анотація</th><th>Жанри</th><th>Рік</th><th>Рейтинг</th></tr></thead>
+    <thead><tr><th>Назва</th><th>Автор</th><th>Анотація</th><th>Жанри</th><th>Рік</th><th>Рейтинг</th><th>Видавництво</th><th>Премії</th></tr></thead>
     <tbody></tbody>
   </table>
   <div id="pager" class="row" style="margin-top:8px; display:none">
@@ -203,7 +203,7 @@ function renderRows(books) {
     const title = b.titleHighlight ? hl(b.titleHighlight) : esc(b.title);
     return `<tr><td>${title}</td>` +
       `<td><a href="#" class="author" data-a="${esc(b.authorName)}">${esc(b.authorName)}</a></td>` +
-      `<td>${syn}</td><td>${esc((b.genres || []).join(', '))}</td><td>${b.publishedYear || ''}</td><td>${b.rating || ''}</td></tr>`;
+      `<td>${syn}</td><td>${esc((b.genres || []).join(', '))}</td><td>${b.publishedYear || ''}</td><td>${b.rating || ''}</td><td>${esc(b.publisherName || '')}</td><td>${esc((b.awards || []).join(', '))}</td></tr>`;
   }).join('');
 }
 
